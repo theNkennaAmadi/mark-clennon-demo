@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vertical Image Flow</title>
+    <style>
+        body { margin: 0; height: 100vh; overflow: hidden; background-color: white; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+<script>
+    gsap.registerPlugin(ScrollTrigger);
+
+    const lenis = new Lenis({
+        smooth: true,
+        infinite: true,
+    });
+
+    function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+    }
+
+    requestAnimationFrame(raf);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0xffffff, 0);
+    document.body.appendChild(renderer.domElement);
+
+    const imageUrls = [
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/v2-yg-inked-3103.jpg?v=1719564054',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/MARK2999.jpg?v=1719564053',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/tiana-theatre-355.jpg?v=1719564053',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/MARK4505.jpg?v=1719564053',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/ter-crwn-4165_V1-v2.jpg?v=1719564053',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/lyric-nas-396.jpg?v=1719564053',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/farhia-library-0876.jpg?v=1719564053',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/22049-05-053_p_V1-v2.jpg?v=1719564054',
+        'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/0424_OTE_BIGSEAN_FINAL_COVERSL.png?v=1719564054',
+    ];
+
+
+    const imagePlanes = [];
+    const totalHeight = imageUrls.length * 4; // Increased total height
+    const spacing = 4; // Increased spacing between images
+    const radius = 10; // Radius of the circular path
+
+    imageUrls.forEach((url, index) => {
+        const texture = new THREE.TextureLoader().load(url, ()=>{
+            let width = texture.image.width;
+            let height = texture.image.height;
+            let aspect = width / height;
+            const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: false });
+            const geometry = new THREE.PlaneGeometry(8*aspect, 8);
+            const mesh = new THREE.Mesh(geometry, material);
+
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.format = THREE.RGBAFormat;
+
+            // Position images starting from the center (first item)
+            const angle = ((index - imageUrls.length / 2) / imageUrls.length) * Math.PI * 2;
+            mesh.position.set(
+                radius * Math.sin(angle),
+                index * spacing - totalHeight / 2,
+                radius * Math.cos(angle)
+            );
+            //mesh.rotation.y = Math.PI / 20; // Slight rotation for 3D effect
+
+            scene.add(mesh);
+            imagePlanes.push(mesh);
+        });
+
+    });
+
+    camera.position.set(0, 0, 1);
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        gsap.to(imagePlanes, {
+            duration: 1,
+            scrollTrigger: {
+                trigger: 'canvas',
+                start: "top top",
+                end: "+=400%",
+                scrub: true,
+                pin: true,
+            },
+            onUpdate: () => {
+                const scrollY = window.scrollY / window.innerHeight * totalHeight;
+                imagePlanes.forEach((plane, index) => {
+                    const yPos = (scrollY + index * spacing) % totalHeight - totalHeight / 2;
+                    plane.position.y = yPos;
+                    const angle = (yPos / totalHeight + 0.5) * Math.PI * 2;
+                    plane.position.x = radius * Math.sin(angle);
+                    plane.position.z = radius * Math.cos(angle);
+
+                    // Fade in/out effect
+                    const normalizedY = (yPos + totalHeight / 2) / totalHeight;
+                    plane.material.opacity = Math.sin(normalizedY * Math.PI);
+                });
+                renderer.render(scene, camera);
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', onWindowResize, false);
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+</script>
+</body>
+</html>

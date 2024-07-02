@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circular Motion Effect</title>
+  <style>
+    body { margin: 0; height: 100vh; overflow: hidden; background-color: black; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
+<script>
+  gsap.registerPlugin(ScrollTrigger);
+
+  const lenis = new Lenis({
+    smooth: true,
+    infinite: true,
+  });
+
+  function raf(time) {
+    lenis.raf(time);
+    requestAnimationFrame(raf);
+  }
+
+  requestAnimationFrame(raf);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x000000, 0);
+  document.body.appendChild(renderer.domElement);
+
+  const imageUrls = [
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/v2-yg-inked-3103.jpg?v=1719564054',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/MARK2999.jpg?v=1719564053',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/tiana-theatre-355.jpg?v=1719564053',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/MARK4505.jpg?v=1719564053',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/ter-crwn-4165_V1-v2.jpg?v=1719564053',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/lyric-nas-396.jpg?v=1719564053',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/farhia-library-0876.jpg?v=1719564053',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/22049-05-053_p_V1-v2.jpg?v=1719564054',
+    'https://cdn.shopify.com/s/files/1/0650/2826/0015/files/0424_OTE_BIGSEAN_FINAL_COVERSL.png?v=1719564054',
+  ];
+
+  const imagePlanes = [];
+  const fixedSpacing = 16.2; // Fixed spacing between planes
+  const totalHeight = imageUrls.length * fixedSpacing;
+
+  Promise.all(imageUrls.map(url => new Promise((resolve) => {
+    new THREE.TextureLoader().load(url, (texture) => {
+      const aspect = texture.image.width / texture.image.height;
+      resolve({ texture, aspect });
+    });
+  }))).then(results => {
+    results.forEach(({ texture, aspect }, index) => {
+      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+      const geometry = new THREE.PlaneGeometry(14* aspect, 14);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.aspect = aspect;
+
+      mesh.position.set(0, index * fixedSpacing - (totalHeight / 2), -0);
+
+      scene.add(mesh);
+      imagePlanes.push(mesh);
+    });
+
+    animate();
+  });
+
+  camera.position.set(0, 0, 3);
+
+  function animate() {
+    gsap.to(imagePlanes, {
+      duration: 1,
+      scrollTrigger: {
+        trigger: 'canvas',
+        start: "top top",
+        end: "+=400%",
+        scrub: true,
+        pin: true,
+      },
+      onUpdate: () => {
+        const scrollY = window.scrollY / window.innerHeight * totalHeight;
+        imagePlanes.forEach((plane, index) => {
+          const yPos = ((scrollY + index * fixedSpacing) % totalHeight) - (totalHeight / 2);
+          const angle = (yPos / totalHeight) * Math.PI * 2;
+          plane.position.y = yPos;
+
+          // Circular rotation effect
+          const radius = 10;
+          plane.position.x = Math.cos(angle) * radius;
+          plane.position.z = Math.sin(angle) * radius - 20;
+
+          // Fade in/out effect
+          const normalizedY = (yPos + totalHeight / 2) / totalHeight;
+          plane.material.opacity = Math.sin(normalizedY * Math.PI);
+        });
+        renderer.render(scene, camera);
+      }
+    });
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+
+  window.addEventListener('resize', onWindowResize, false);
+
+  function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+</script>
+</body>
+</html>
